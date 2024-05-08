@@ -101,3 +101,12 @@ func (r *RelationUseCase) GetFollowingsIds(userId *string) (*[]uint64, error) {
 	}
 	return userIdSlice, nil
 }
+
+func (r *RelationUseCase) UserAFollowingUserBorNot(userId, userBId *string) (bool, error) {
+
+	resp, err := r.RelationRepo.UserAFollowingUserBorNot(userId, userBId)
+	if err != nil {
+		return false, err
+	}
+	return resp, err
+}

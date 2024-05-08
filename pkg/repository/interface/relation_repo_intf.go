@@ -6,4 +6,5 @@ type IRelationRepo interface {
 	InitiateUnFollowRelationship(userId, userBId *string) *error
 	GetFollowersIdsOfUser(userId *string) (*[]uint64, error)
 	GetFollowingsIdsOfUser(userId *string) (*[]uint64, error)
+	UserAFollowingUserBorNot(userId, userBId *string) (bool, error)
 }

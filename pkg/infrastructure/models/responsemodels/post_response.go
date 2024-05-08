@@ -7,11 +7,17 @@ type PostData struct {
 	UserName          string
 	UserProfileImgURL string
 	PostId            uint
-	LikeStatus        bool
 	Caption           string
 	CreatedAt         time.Time
-	LikesCount        string
-	CommentsCount     string
 	PostAge           string
-	MediaUrl          []string
+	MediaUrl          []string `gorm:"-"`
+
+	IsLiked       bool
+	LikesCount    uint
+	CommentsCount uint
+}
+
+type LikeCommentCounts struct {
+	LikesCount    uint `gorm:"column:likes_count"`
+	CommentsCount uint `gorm:"column:comments_count"`
 }

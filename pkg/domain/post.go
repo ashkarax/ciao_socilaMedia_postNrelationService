@@ -22,10 +22,11 @@ type Post struct {
 }
 
 type PostMedia struct {
-	MediaID uint `gorm:"primarykey"`
+	MediaId uint `gorm:"primarykey"`
+	
+	PostID  uint `gorm:"not null"`
 
-	PostID uint `gorm:"not null"`
-	Post   Post `gorm:"foreignKey:PostID"`
+	Posts Post `gorm:"foreignkey:PostID"`
 
 	MediaUrl string
 }

@@ -3,12 +3,10 @@ package domain_postNrelSvc
 import "time"
 
 type PostLikes struct {
-	LikeID uint `gorm:"primarykey"`
-
 	UserID uint `gorm:"not null"`
 
 	PostID uint `gorm:"not null"`
-	Posts  Post `gorm:"foreignKey:PostID"`
+	Posts  Post `gorm:"foreignkey:PostID"`
 
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 

@@ -9,6 +9,7 @@ import (
 	server_postNrelSvc "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/infrastructure/server"
 	repository_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/repository"
 	usecase_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/usecase"
+	datetoage "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/DateToAge"
 	aws_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/aws_s3"
 	hashpassword_postNrelSvc "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/hash_password"
 )
@@ -24,6 +25,7 @@ func InitializePostNRelationServer(config *config_postNrelSvc.Config) (*server_p
 	}
 
 	awsUtil := aws_postnrel.AWSS3FileUploaderSetup(config.AwsS3)
+	dateToAgeUtil := datetoage.NewDateToAgeUtil()
 
 	authClient, err := client_postnrel.InitAuthServiceClient(config)
 	if err != nil {
@@ -32,11 +34,14 @@ func InitializePostNRelationServer(config *config_postNrelSvc.Config) (*server_p
 	}
 
 	postRepo := repository_postnrel.NewPostRepo(DB)
-	postUseCase := usecase_postnrel.NewPostUseCase(postRepo, awsUtil, authClient)
+	postUseCase := usecase_postnrel.NewPostUseCase(postRepo, awsUtil, dateToAgeUtil, authClient)
 
 	relationRepo := repository_postnrel.NewRelationRepo(DB)
-	relationUseCase := usecase_postnrel.NewRelationUseCase(relationRepo,postRepo,authClient)
+	relationUseCase := usecase_postnrel.NewRelationUseCase(relationRepo, postRepo, authClient)
 
-	return server_postNrelSvc.NewPostNrelServiceServer(postUseCase, relationUseCase), nil
+	commentRepo := repository_postnrel.NewCommentRepo(DB)
+	commentUseCase := usecase_postnrel.NewCommentUseCase(commentRepo, dateToAgeUtil, authClient)
+
+	return server_postNrelSvc.NewPostNrelServiceServer(postUseCase, relationUseCase, commentUseCase), nil
 
 }

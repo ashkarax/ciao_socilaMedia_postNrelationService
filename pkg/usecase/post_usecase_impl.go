@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strconv"
 	"time"
 
 	requestmodels_posnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/infrastructure/models/requestmodels"
@@ -13,21 +12,25 @@ import (
 	"github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/infrastructure/pb"
 	interface_repo_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/repository/interface"
 	interface_usecase_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/usecase/interface"
+	interface_dateToAge "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/DateToAge/interface"
 	interface_awss3_postnrelations "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/aws_s3/interface"
 )
 
 type PostUseCase struct {
-	PostRepo   interface_repo_postnrel.IPostRepo
-	AWSUtil    interface_awss3_postnrelations.IAwsS3
-	AuthClient pb.AuthServiceClient
+	PostRepo      interface_repo_postnrel.IPostRepo
+	AWSUtil       interface_awss3_postnrelations.IAwsS3
+	DateToAgeUtil interface_dateToAge.IDateToAge
+	AuthClient    pb.AuthServiceClient
 }
 
 func NewPostUseCase(postRepo interface_repo_postnrel.IPostRepo,
 	awsUtil interface_awss3_postnrelations.IAwsS3,
+	dateToAgeUtil interface_dateToAge.IDateToAge,
 	authClient *pb.AuthServiceClient) interface_usecase_postnrel.IPostUseCase {
 	return &PostUseCase{PostRepo: postRepo,
-		AWSUtil:    awsUtil,
-		AuthClient: *authClient,
+		AWSUtil:       awsUtil,
+		DateToAgeUtil: dateToAgeUtil,
+		AuthClient:    *authClient,
 	}
 }
 
@@ -81,30 +84,21 @@ func (r *PostUseCase) GetAllPosts(userId, limit, offset *string) (*[]responsemod
 		(*postData)[i].UserName = userData.UserName
 		(*postData)[i].UserProfileImgURL = userData.UserProfileImgURL
 
-		postIdString := strconv.FormatUint(uint64(split.PostId), 10)
+		postIdString := fmt.Sprint(split.PostId)
 		postMedias, err := r.PostRepo.GetPostMediaById(&postIdString)
 		if err != nil {
 			return nil, err
 		}
 		(*postData)[i].MediaUrl = *postMedias
-
-		currentTime := time.Now()
-		duration := currentTime.Sub((*postData)[i].CreatedAt)
-
-		minutes := int(duration.Minutes())
-		hours := int(duration.Hours())
-		days := int(duration.Hours() / 24)
-		months := int(duration.Hours() / 24 / 7)
-
-		if minutes < 60 {
-			(*postData)[i].PostAge = fmt.Sprintf("%d mins ago", minutes)
-		} else if hours < 24 {
-			(*postData)[i].PostAge = fmt.Sprintf("%d hrs ago", hours)
-		} else if days < 30 {
-			(*postData)[i].PostAge = fmt.Sprintf("%d dy ago", days)
-		} else {
-			(*postData)[i].PostAge = fmt.Sprintf("%d weks ago", months)
+		LikeCommentCount, err := r.PostRepo.GetPostLikeAndCommentsCount(&postIdString)
+		if err != nil {
+			return nil, err
 		}
+
+		(*postData)[i].LikesCount = LikeCommentCount.LikesCount
+		(*postData)[i].CommentsCount = LikeCommentCount.CommentsCount
+
+		(*postData)[i].PostAge = *r.DateToAgeUtil.DateTOAge(&(*postData)[i].CreatedAt)
 	}
 
 	return postData, nil
@@ -133,4 +127,98 @@ func (r *PostUseCase) EditPost(request *requestmodels_posnrel.EditPost) error {
 	}
 
 	return nil
+}
+
+func (r *PostUseCase) LikePost(postId, userId *string) *error {
+
+	err := r.PostRepo.LikePost(postId, userId)
+	if err != nil {
+		fmt.Println(err)
+		return &err
+	}
+	return nil
+}
+
+func (r *PostUseCase) UnLikePost(postId, userId *string) *error {
+
+	err := r.PostRepo.UnLikePost(postId, userId)
+	if err != nil {
+		fmt.Println(err)
+		return &err
+	}
+	return nil
+}
+
+func (r *PostUseCase) GetMostLovedPostsFromGlobalUser(userId, limit, offset *string) (*[]responsemodels_postnrel.PostData, error) {
+	postData, err := r.PostRepo.GetMostLovedPostsFromGlobalUser(userId, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, split := range *postData {
+		context, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		userData, err := r.AuthClient.GetUserDetailsLiteForPostView(context, &pb.RequestUserId{UserId: fmt.Sprint((*postData)[i].UserId)})
+		if err != nil || userData.ErrorMessage != "" {
+			return nil, errors.New(fmt.Sprint(err) + userData.ErrorMessage)
+		}
+
+		(*postData)[i].UserName = userData.UserName
+		(*postData)[i].UserProfileImgURL = userData.UserProfileImgURL
+
+		postIdString := fmt.Sprint(split.PostId)
+		postMedias, err := r.PostRepo.GetPostMediaById(&postIdString)
+		if err != nil {
+			return nil, err
+		}
+		(*postData)[i].MediaUrl = *postMedias
+		LikeCommentCount, err := r.PostRepo.GetPostLikeAndCommentsCount(&postIdString)
+		if err != nil {
+			return nil, err
+		}
+
+		(*postData)[i].LikesCount = LikeCommentCount.LikesCount
+		(*postData)[i].CommentsCount = LikeCommentCount.CommentsCount
+
+		(*postData)[i].PostAge = *r.DateToAgeUtil.DateTOAge(&(*postData)[i].CreatedAt)
+	}
+
+	return postData, nil
+}
+
+func (r *PostUseCase) GetAllRelatedPostsForHomeScreen(userId, limit, offset *string) (*[]responsemodels_postnrel.PostData, error) {
+	postData, err := r.PostRepo.GetAllActiveRelatedPostsForHomeScreen(userId, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, split := range *postData {
+		context, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		userData, err := r.AuthClient.GetUserDetailsLiteForPostView(context, &pb.RequestUserId{UserId: fmt.Sprint((*postData)[i].UserId)})
+		if err != nil || userData.ErrorMessage != "" {
+			return nil, errors.New(fmt.Sprint(err) + userData.ErrorMessage)
+		}
+
+		(*postData)[i].UserName = userData.UserName
+		(*postData)[i].UserProfileImgURL = userData.UserProfileImgURL
+
+		postIdString := fmt.Sprint(split.PostId)
+		postMedias, err := r.PostRepo.GetPostMediaById(&postIdString)
+		if err != nil {
+			return nil, err
+		}
+		(*postData)[i].MediaUrl = *postMedias
+		LikeCommentCount, err := r.PostRepo.GetPostLikeAndCommentsCount(&postIdString)
+		if err != nil {
+			return nil, err
+		}
+
+		(*postData)[i].LikesCount = LikeCommentCount.LikesCount
+		(*postData)[i].CommentsCount = LikeCommentCount.CommentsCount
+
+		(*postData)[i].PostAge = *r.DateToAgeUtil.DateTOAge(&(*postData)[i].CreatedAt)
+	}
+
+	return postData, nil
 }

@@ -51,13 +51,16 @@ func ConnectDatabase(config *config_postNrelSvc.DataBase, hashUtil interface_has
 	if err := DB.AutoMigrate(&domain_postNrelSvc.Post{}); err != nil {
 		return DB, err
 	}
-	if err := DB.AutoMigrate(&domain_postNrelSvc.PostMedia{}); err != nil {
-		return DB, err
-	}
 	if err := DB.AutoMigrate(&domain_postNrelSvc.PostLikes{}); err != nil {
 		return DB, err
 	}
+	if err := DB.AutoMigrate(&domain_postNrelSvc.PostMedia{}); err != nil {
+		return DB, err
+	}
 	if err := DB.AutoMigrate(&domain_postNrelSvc.Relationship{}); err != nil {
+		return DB, err
+	}
+	if err := DB.AutoMigrate(&domain_postNrelSvc.Comment{}); err != nil {
 		return DB, err
 	}
 

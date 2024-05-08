@@ -68,3 +68,20 @@ func (d *RelationRepo) GetFollowingsIdsOfUser(userId *string) (*[]uint64, error)
 	}
 	return &userIds, nil
 }
+
+func (d *RelationRepo) UserAFollowingUserBorNot(userId, userBId *string) (bool, error) {
+	var count uint
+
+	query := "SELECT COUNT(*) FROM relationships WHERE follower_id = ? AND following_id = ? AND relation_type=?"
+	err := d.DB.Raw(query, userId, userBId, "follows").Scan(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	if count > 0 {
+		return true, nil
+	}
+
+	return false, nil
+
+}

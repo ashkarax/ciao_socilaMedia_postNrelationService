@@ -11,5 +11,9 @@ type IPostUseCase interface {
 
 	GetAllPosts(userId, limit, offset *string) (*[]responsemodels_postnrel.PostData, error)
 	DeletePost(postId, userId *string) error
-	EditPost( request *requestmodels_posnrel.EditPost) error
+	EditPost(request *requestmodels_posnrel.EditPost) error
+	LikePost(postId, userId *string) *error
+	UnLikePost(postId, userId *string) *error
+	GetMostLovedPostsFromGlobalUser(userId, limit, offset *string) (*[]responsemodels_postnrel.PostData, error)
+	GetAllRelatedPostsForHomeScreen(userId, limit, offset *string) (*[]responsemodels_postnrel.PostData, error)
 }

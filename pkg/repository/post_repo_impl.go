@@ -3,6 +3,7 @@ package repository_postnrel
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	requestmodels_posnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/infrastructure/models/requestmodels"
@@ -43,7 +44,7 @@ func (d *PostRepo) AddNewPost(postData *requestmodels_posnrel.AddPostData) error
 func (d *PostRepo) GetAllActivePostByUser(userId, limit, offset *string) (*[]responsemodels_postnrel.PostData, error) {
 	var response []responsemodels_postnrel.PostData
 
-	query := "SELECT post_id,caption,created_at FROM posts WHERE user_id=$1 AND post_status=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4"
+	query := "SELECT posts.*,CASE WHEN EXISTS (SELECT 1 FROM post_likes WHERE post_likes.post_id = posts.post_id AND post_likes.user_id = $1) THEN TRUE ELSE FALSE END AS is_liked FROM posts LEFT JOIN post_likes ON posts.post_id = post_likes.post_id  WHERE posts.user_id=$1 AND posts.post_status = $2 GROUP BY posts.post_id ORDER BY posts.created_at DESC LIMIT $3 OFFSET $4;"
 	err := d.DB.Raw(query, *userId, "normal", *limit, *offset).Scan(&response).Error
 	if err != nil {
 		fmt.Println("------", err)
@@ -107,5 +108,62 @@ func (d *PostRepo) GetPostCountOfUser(userId *string) (*uint, *error) {
 		return nil, &err
 	}
 	return &count, nil
+
+}
+
+func (d *PostRepo) LikePost(postId, userId *string) error {
+	query := "INSERT INTO post_likes (user_id,post_id,created_at) VALUES (?,?,?) ON CONFLICT (user_id, post_id) DO NOTHING;"
+	err := d.DB.Exec(query, userId, postId, time.Now()).Error
+	if err != nil {
+		if strings.Contains(err.Error(), "violates foreign key constraint") {
+			return errors.New("enter a valid postid: Post not found")
+		}
+		fmt.Println("----------", err)
+		return err
+	}
+	return nil
+}
+
+func (d *PostRepo) UnLikePost(postId, userId *string) error {
+	query := "DELETE FROM post_likes WHERE user_id=? AND post_id=?"
+	err := d.DB.Exec(query, userId, postId).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *PostRepo) GetPostLikeAndCommentsCount(postId *string) (*responsemodels_postnrel.LikeCommentCounts, error) {
+	var ScannerStruct responsemodels_postnrel.LikeCommentCounts
+
+	query := "SELECT (SELECT COUNT(*) FROM post_likes WHERE post_id = $1) AS likes_count,(SELECT COUNT(*) FROM comments WHERE post_id = $1 AND parent_comment_id = 0) AS comments_count;"
+	err := d.DB.Raw(query, postId).Scan(&ScannerStruct).Error
+	if err != nil {
+		return nil, err
+	}
+	return &ScannerStruct, nil
+}
+
+func (d *PostRepo) GetMostLovedPostsFromGlobalUser(userId, limit, offset *string) (*[]responsemodels_postnrel.PostData, error) {
+	var response []responsemodels_postnrel.PostData
+
+	query := "SELECT posts.*,COUNT(post_likes.post_id) AS like_count,CASE WHEN EXISTS (SELECT 1 FROM post_likes WHERE post_likes.post_id = posts.post_id AND post_likes.user_id = $1) THEN TRUE ELSE FALSE END AS is_liked FROM posts LEFT JOIN post_likes ON posts.post_id = post_likes.post_id WHERE posts.post_status = 'normal' GROUP BY posts.post_id ORDER BY like_count DESC,posts.created_at DESC LIMIT $2 OFFSET $3"
+	err := d.DB.Raw(query, *userId, *limit, *offset).Scan(&response).Error
+	if err != nil {
+		fmt.Println("------", err)
+		return nil, err
+	}
+	return &response, nil
+}
+
+func (d *PostRepo) GetAllActiveRelatedPostsForHomeScreen(userId, limit, offset *string) (*[]responsemodels_postnrel.PostData, error) {
+	var response []responsemodels_postnrel.PostData
+
+	query := "SELECT posts.*,CASE WHEN post_likes.user_id IS NULL THEN FALSE ELSE TRUE END AS is_liked FROM posts INNER JOIN relationships ON posts.user_id =relationships.following_id LEFT JOIN (SELECT post_id, user_id FROM post_likes WHERE user_id = $1) AS post_likes ON posts.post_id = post_likes.post_id  WHERE relationships.follower_id = $1 AND posts.post_status = 'normal' ORDER BY posts.created_at DESC LIMIT $2 OFFSET $3"
+	err := d.DB.Raw(query, userId, limit, offset).Scan(&response)
+	if err.Error != nil {
+		return &response, err.Error
+	}
+	return &response, nil
 
 }
