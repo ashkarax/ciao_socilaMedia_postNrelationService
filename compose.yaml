@@ -1,0 +1,49 @@
+version: '3.9'
+name: ciao_postnrel_service
+
+services:
+  postgresdb:
+    image: postgres:14
+    restart:  always
+    container_name: postgres_db
+    shm_size: 128mb
+    environment:
+      - POSTGRES_PASSWORD=postgres
+    networks:
+      - ciao_net_bridge
+    volumes:
+      - project-volume:/var/lib/postgresql/data
+    hostname: postgresdb
+
+  ciao_postnrel:
+    image: ciao_postnrel_svc:production
+    build: .
+    restart: unless-stopped
+    container_name: postnrel_svc
+    depends_on:
+      - postgresdb
+    networks:
+      - ciao_net_bridge
+    ports:
+      - 50052:50052
+    environment:
+      - DBHOST=postgresdb
+      - DBPASSWORD=postgres
+   # hostname: localhost
+
+
+
+
+networks:
+  ciao_net_bridge:
+    driver: bridge
+volumes:
+  project-volume:
+  
+
+#docker compose will only fetch from .env file if it is within the same directory as compose file,other way to specify the .env file which is in another directory we can specify it in the docker compose command ,but need to do it every time,so as a solution we are setting up this in our system ,so we dont have to specify on every command,once set is set,
+#export DOCKER_ENV_FILE=./pkg/infrastructure/configs/envs/dev.env  # Example for bash
+
+    
+    
+

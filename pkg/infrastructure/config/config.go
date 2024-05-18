@@ -33,7 +33,7 @@ func LoadConfig() (*Config, error) {
 	var db DataBase
 	var awsS3 AWS
 
-	viper.AddConfigPath("./pkg/infrastructure/config/envs")
+	viper.AddConfigPath("./")
 	viper.SetConfigName("dev")
 	viper.SetConfigType("env")
 

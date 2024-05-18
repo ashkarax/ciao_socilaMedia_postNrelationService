@@ -15,7 +15,8 @@ import (
 
 func ConnectDatabase(config *config_postNrelSvc.DataBase, hashUtil interface_hash_postNrelSvc.IhashPassword) (*gorm.DB, error) {
 
-	connectionString := fmt.Sprintf("host=%s user=%s password=%s port=%s", config.DBHost, config.DBUser, config.DBPassword, config.DBPort)
+	connectionString := fmt.Sprintf("host=%s user=%s password=%s port=%s sslmode=disable", config.DBHost, config.DBUser, config.DBPassword, config.DBPort)
+	fmt.Println("database connection string ------", connectionString)
 	sql, err := sql.Open("postgres", connectionString)
 	if err != nil {
 		fmt.Println("-------", err)
@@ -25,8 +26,13 @@ func ConnectDatabase(config *config_postNrelSvc.DataBase, hashUtil interface_has
 	rows, err := sql.Query("SELECT 1 FROM pg_database WHERE datname = '" + config.DBName + "'")
 	if err != nil {
 		fmt.Println("Error checking database existence:", err)
+		return nil, err
 	}
 	defer rows.Close()
+
+	if rows == nil {
+		fmt.Println("row is nil database not connection condtion true")
+	}
 
 	if rows.Next() {
 		fmt.Println("Database" + config.DBName + " already exists.")
@@ -37,8 +43,8 @@ func ConnectDatabase(config *config_postNrelSvc.DataBase, hashUtil interface_has
 		}
 	}
 
-	psqlInfo := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s", config.DBHost, config.DBUser, config.DBName, config.DBPort, config.DBPassword)
-	DB, dberr := gorm.Open(postgres.Open(psqlInfo), &gorm.Config{
+	// psqlInfo := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s", config.DBHost, config.DBUser, config.DBName, config.DBPort, config.DBPassword)
+	DB, dberr := gorm.Open(postgres.Open(connectionString), &gorm.Config{
 		NowFunc: func() time.Time {
 			return time.Now().UTC() // Set the timezone to UTC
 		},

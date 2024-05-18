@@ -28,12 +28,27 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Auth Service started on:", config.PortMngr.RunnerPort)
+	fmt.Println("PostNrel Service started on:", config.PortMngr.RunnerPort)
 
+	// Create a new gRPC server
 	grpcServer := grpc.NewServer()
 
 	pb.RegisterPostNrelServiceServer(grpcServer, server)
 
+	// Log every connection attempt to the server
+	go func() {
+		for {
+			conn, err := lis.Accept()
+			if err != nil {
+				log.Println("Error accepting connection:", err)
+				continue
+			}
+			log.Println("New connection from:", conn.RemoteAddr())
+			conn.Close() // Close the connection immediately for logging purposes
+		}
+	}()
+
+	// Serve the gRPC server
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to start PostNrelations_service server:%v", err)
 
