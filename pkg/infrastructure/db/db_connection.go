@@ -43,8 +43,8 @@ func ConnectDatabase(config *config_postNrelSvc.DataBase, hashUtil interface_has
 		}
 	}
 
-	// psqlInfo := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s", config.DBHost, config.DBUser, config.DBName, config.DBPort, config.DBPassword)
-	DB, dberr := gorm.Open(postgres.Open(connectionString), &gorm.Config{
+	psqlInfo := fmt.Sprintf("host=%s user=%s dbname=%s port=%s password=%s", config.DBHost, config.DBUser, config.DBName, config.DBPort, config.DBPassword)
+	DB, dberr := gorm.Open(postgres.Open(psqlInfo), &gorm.Config{
 		NowFunc: func() time.Time {
 			return time.Now().UTC() // Set the timezone to UTC
 		},
