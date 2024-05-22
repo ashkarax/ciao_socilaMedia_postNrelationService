@@ -105,8 +105,8 @@ func (d *CommentRepo) EditComment(userId, commentText *string, commentId *uint64
 func (d *CommentRepo) FetchParentCommentsOfPost(userId, postId, limit, offset *string) (*[]responsemodels_postnrel.ParentComments, error) {
 	var ScannerStruct []responsemodels_postnrel.ParentComments
 
-	query := "SELECT * FROM comments WHERE user_id=$1 AND post_id=$2 AND parent_comment_id=0 LIMIT $3 OFFSET $4"
-	result := d.DB.Raw(query, userId, postId, limit, offset).Scan(&ScannerStruct).Error
+	query := "SELECT * FROM comments WHERE post_id=$1 AND parent_comment_id=0 LIMIT $2 OFFSET $3"
+	result := d.DB.Raw(query, postId, limit, offset).Scan(&ScannerStruct).Error
 	if result != nil {
 		return nil, result
 	}
@@ -122,4 +122,3 @@ func (d *CommentRepo) FetchChildCommentsOfComment(parentCommentId *uint) (*[]res
 	}
 	return &ScannerStruct, nil
 }
-
