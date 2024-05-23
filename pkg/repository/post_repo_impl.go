@@ -66,6 +66,11 @@ func (d *PostRepo) GetPostMediaById(postId *string) (*[]string, error) {
 }
 
 func (d *PostRepo) DeletePostById(postId, userId *string) error {
+
+	err := d.RemovePostLikesByPostId(postId)
+	if err != nil {
+		return err
+	}
 	query := "DELETE FROM posts WHERE post_id=$1 AND user_id=$2"
 	res := d.DB.Exec(query, postId, userId)
 	if res.RowsAffected == 0 {
@@ -75,6 +80,15 @@ func (d *PostRepo) DeletePostById(postId, userId *string) error {
 		return res.Error
 	}
 
+	return nil
+}
+
+func (d *PostRepo) RemovePostLikesByPostId(postId *string) error {
+	query := "DELETE FROM post_likes WHERE post_id=$1"
+	err := d.DB.Exec(query, postId).Error
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

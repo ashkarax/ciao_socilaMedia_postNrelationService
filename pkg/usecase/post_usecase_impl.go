@@ -106,13 +106,13 @@ func (r *PostUseCase) GetAllPosts(userId, limit, offset *string) (*[]responsemod
 
 func (r *PostUseCase) DeletePost(postId, userId *string) error {
 
-	err := r.PostRepo.DeletePostById(postId, userId)
+	err := r.PostRepo.DeletePostMedias(postId)
 	if err != nil {
 		return err
 	}
-	err2 := r.PostRepo.DeletePostMedias(postId)
-	if err2 != nil {
-		return err2
+	err = r.PostRepo.DeletePostById(postId, userId)
+	if err != nil {
+		return err
 	}
 
 	return nil

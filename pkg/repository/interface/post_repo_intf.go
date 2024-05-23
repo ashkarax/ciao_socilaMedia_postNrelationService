@@ -15,6 +15,7 @@ type IPostRepo interface {
 	EditPost(inputData *requestmodels_posnrel.EditPost) error
 	LikePost(postId, userId *string) error
 	UnLikePost(postId, userId *string) error
+	RemovePostLikesByPostId(postId *string) error
 
 	GetPostCountOfUser(userId *string) (*uint, *error)
 	GetPostLikeAndCommentsCount(postId *string) (*responsemodels_postnrel.LikeCommentCounts, error)
