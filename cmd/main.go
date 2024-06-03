@@ -27,6 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer lis.Close()
 
 	fmt.Println("PostNrel Service started on:", config.PortMngr.RunnerPort)
 
@@ -44,7 +45,15 @@ func main() {
 				continue
 			}
 			log.Println("New connection from:", conn.RemoteAddr())
-			conn.Close() // Close the connection immediately for logging purposes
+			
+			// Optionally read from the connection and log data (for demonstration purposes)
+			buf := make([]byte, 1024)
+			n, err := conn.Read(buf)
+			if err != nil {
+				log.Println("Error reading from connection:", err)
+				return
+			}
+			log.Printf("Received data: %s", string(buf[:n]))
 		}
 	}()
 
