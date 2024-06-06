@@ -1,6 +1,7 @@
 package repository_postnrel
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -125,17 +126,18 @@ func (d *PostRepo) GetPostCountOfUser(userId *string) (*uint, *error) {
 
 }
 
-func (d *PostRepo) LikePost(postId, userId *string) error {
-	query := "INSERT INTO post_likes (user_id,post_id,created_at) VALUES (?,?,?) ON CONFLICT (user_id, post_id) DO NOTHING;"
-	err := d.DB.Exec(query, userId, postId, time.Now()).Error
-	if err != nil {
+func (d *PostRepo) LikePost(postId, userId *string) (bool, error) {
+	var inserted bool
+	query := "INSERT INTO post_likes (user_id,post_id,created_at) VALUES (?,?,?) ON CONFLICT (user_id, post_id) DO NOTHING RETURNING (xmax = 0);"
+	err := d.DB.Raw(query, userId, postId, time.Now()).Scan(&inserted).Error
+	if err != nil && err != sql.ErrNoRows {
 		if strings.Contains(err.Error(), "violates foreign key constraint") {
-			return errors.New("enter a valid postid: Post not found")
+			return false, errors.New("enter a valid postid: Post not found")
 		}
 		fmt.Println("----------", err)
-		return err
+		return false, err
 	}
-	return nil
+	return inserted, nil
 }
 
 func (d *PostRepo) UnLikePost(postId, userId *string) error {
@@ -180,4 +182,17 @@ func (d *PostRepo) GetAllActiveRelatedPostsForHomeScreen(userId, limit, offset *
 	}
 	return &response, nil
 
+}
+
+func (d *PostRepo) GetPostCreatorId(postId *string) (*string, error) {
+	var id string
+	query := "SELECT user_id FROM posts WHERE post_id=?"
+	result := d.DB.Raw(query, postId).Scan(&id)
+	if result.RowsAffected == 0 {
+		return nil, errors.New("no post found with this id,enter a valid postid")
+	}
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &id, nil
 }

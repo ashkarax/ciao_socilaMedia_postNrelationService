@@ -12,6 +12,7 @@ import (
 	datetoage "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/DateToAge"
 	aws_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/aws_s3"
 	hashpassword_postNrelSvc "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/hash_password"
+	kafkaproducer "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/kafka_producer"
 )
 
 func InitializePostNRelationServer(config *config_postNrelSvc.Config) (*server_postNrelSvc.PostNrelService, error) {
@@ -26,6 +27,7 @@ func InitializePostNRelationServer(config *config_postNrelSvc.Config) (*server_p
 
 	awsUtil := aws_postnrel.AWSS3FileUploaderSetup(config.AwsS3)
 	dateToAgeUtil := datetoage.NewDateToAgeUtil()
+	kafkaProducer := kafkaproducer.NewKafkaProducer(config.KafkaConfig)
 
 	authClient, err := client_postnrel.InitAuthServiceClient(config)
 	if err != nil {
@@ -34,13 +36,13 @@ func InitializePostNRelationServer(config *config_postNrelSvc.Config) (*server_p
 	}
 
 	postRepo := repository_postnrel.NewPostRepo(DB)
-	postUseCase := usecase_postnrel.NewPostUseCase(postRepo, awsUtil, dateToAgeUtil, authClient)
+	postUseCase := usecase_postnrel.NewPostUseCase(postRepo, awsUtil, dateToAgeUtil, authClient, kafkaProducer)
 
 	relationRepo := repository_postnrel.NewRelationRepo(DB)
-	relationUseCase := usecase_postnrel.NewRelationUseCase(relationRepo, postRepo, authClient)
+	relationUseCase := usecase_postnrel.NewRelationUseCase(relationRepo, postRepo, authClient, kafkaProducer)
 
 	commentRepo := repository_postnrel.NewCommentRepo(DB)
-	commentUseCase := usecase_postnrel.NewCommentUseCase(commentRepo, dateToAgeUtil, authClient)
+	commentUseCase := usecase_postnrel.NewCommentUseCase(commentRepo, dateToAgeUtil, authClient, kafkaProducer,postRepo)
 
 	return server_postNrelSvc.NewPostNrelServiceServer(postUseCase, relationUseCase, commentUseCase), nil
 

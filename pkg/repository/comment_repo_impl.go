@@ -2,6 +2,7 @@ package repository_postnrel
 
 import (
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -121,4 +122,16 @@ func (d *CommentRepo) FetchChildCommentsOfComment(parentCommentId *uint) (*[]res
 		return nil, err
 	}
 	return &ScannerStruct, nil
+}
+
+func (d *CommentRepo) FindCommentCreatorId(CommentId *uint64) (*string, error) {
+	var parentId string
+
+	query := "SELECT user_id FROM comments WHERE comment_id=?"
+	err := d.DB.Raw(query, CommentId).Scan(&parentId).Error
+	if err != nil {
+		log.Println("--------", err)
+		return nil, err
+	}
+	return &parentId, nil
 }

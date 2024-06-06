@@ -13,4 +13,5 @@ type ICommentRepo interface {
 	EditComment(userId, commentText *string, commentId *uint64) error
 	FetchParentCommentsOfPost(userId, postId, limit, offset *string) (*[]responsemodels_postnrel.ParentComments, error)
 	FetchChildCommentsOfComment(parentCommentId *uint) (*[]responsemodels_postnrel.ChildComments, error)
+	FindCommentCreatorId(CommentId *uint64) (*string, error)
 }

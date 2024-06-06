@@ -1,6 +1,8 @@
 package repository_postnrel
 
 import (
+	"database/sql"
+
 	interface_repo_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/repository/interface"
 	"gorm.io/gorm"
 )
@@ -26,14 +28,15 @@ func (d *RelationRepo) GetFollowerAndFollowingCountofUser(userId *string) (*uint
 	return &counts.FollowersCount, &counts.FollowingCount, nil
 }
 
-func (d *RelationRepo) InitiateFollowRelationship(userId, userBId *string) *error {
+func (d *RelationRepo) InitiateFollowRelationship(userId, userBId *string) (bool, error) {
+	var inserted bool
 
-	query := "INSERT INTO relationships (follower_id, following_id) VALUES ($1, $2) ON CONFLICT (follower_id, following_id) DO NOTHING;"
-	err := d.DB.Exec(query, userId, userBId).Error
-	if err != nil {
-		return &err
+	query := "INSERT INTO relationships (follower_id, following_id) VALUES ($1, $2) ON CONFLICT (follower_id, following_id) DO NOTHING RETURNING (xmax = 0);"
+	err := d.DB.Raw(query, userId, userBId).Scan(&inserted).Error
+	if err != nil && err != sql.ErrNoRows {
+		return false, err
 	}
-	return nil
+	return inserted, nil
 }
 
 func (d *RelationRepo) InitiateUnFollowRelationship(userId, userBId *string) *error {

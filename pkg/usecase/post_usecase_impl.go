@@ -14,6 +14,7 @@ import (
 	interface_usecase_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/usecase/interface"
 	interface_dateToAge "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/DateToAge/interface"
 	interface_awss3_postnrelations "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/aws_s3/interface"
+	interface_kafkaproducer "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/kafka_producer/interface"
 )
 
 type PostUseCase struct {
@@ -21,16 +22,19 @@ type PostUseCase struct {
 	AWSUtil       interface_awss3_postnrelations.IAwsS3
 	DateToAgeUtil interface_dateToAge.IDateToAge
 	AuthClient    pb.AuthServiceClient
+	KafkaProducer interface_kafkaproducer.IKafkaProducer
 }
 
 func NewPostUseCase(postRepo interface_repo_postnrel.IPostRepo,
 	awsUtil interface_awss3_postnrelations.IAwsS3,
 	dateToAgeUtil interface_dateToAge.IDateToAge,
-	authClient *pb.AuthServiceClient) interface_usecase_postnrel.IPostUseCase {
+	authClient *pb.AuthServiceClient,
+	kafkaProducer interface_kafkaproducer.IKafkaProducer) interface_usecase_postnrel.IPostUseCase {
 	return &PostUseCase{PostRepo: postRepo,
 		AWSUtil:       awsUtil,
 		DateToAgeUtil: dateToAgeUtil,
 		AuthClient:    *authClient,
+		KafkaProducer: kafkaProducer,
 	}
 }
 
@@ -131,10 +135,31 @@ func (r *PostUseCase) EditPost(request *requestmodels_posnrel.EditPost) error {
 
 func (r *PostUseCase) LikePost(postId, userId *string) *error {
 
-	err := r.PostRepo.LikePost(postId, userId)
+	PostCreatorId, err := r.PostRepo.GetPostCreatorId(postId)
+	if err != nil {
+		return &err
+	}
+	inserted, err := r.PostRepo.LikePost(postId, userId)
 	if err != nil {
 		fmt.Println(err)
 		return &err
+	}
+
+	if *PostCreatorId != *userId { //avoiding the case where user likes his own post
+		var message requestmodels_posnrel.KafkaNotificationTopicModel
+		if inserted {
+			message.UserID = *PostCreatorId
+			message.ActorID = *userId
+			message.ActionType = "like"
+			message.TargetID = *postId
+			message.TargetType = "post"
+			message.CreatedAt = time.Now()
+
+			err = r.KafkaProducer.KafkaNotificationProducer(&message)
+			if err != nil {
+				return &err
+			}
+		}
 	}
 	return nil
 }

@@ -22,16 +22,23 @@ type AWS struct {
 	Endpoint   string `mapstructure:"AWS_ENDPOINT"`
 }
 
+type KafkaConfigs struct {
+	KafkaPort              string `mapstructure:"KAFKA_PORT"`
+	KafkaTopicNotification string `mapstructure:"KAFKA_TOPIC_2"`
+}
+
 type Config struct {
-	PortMngr PortManager
-	DB       DataBase
-	AwsS3    AWS
+	PortMngr    PortManager
+	DB          DataBase
+	AwsS3       AWS
+	KafkaConfig KafkaConfigs
 }
 
 func LoadConfig() (*Config, error) {
 	var portmngr PortManager
 	var db DataBase
 	var awsS3 AWS
+	var kafkaconfigs KafkaConfigs
 
 	viper.AddConfigPath("./")
 	viper.SetConfigName("dev")
@@ -56,8 +63,12 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = viper.Unmarshal(&kafkaconfigs)
+	if err != nil {
+		return nil, err
+	}
 
-	config := Config{PortMngr: portmngr, DB: db, AwsS3: awsS3}
+	config := Config{PortMngr: portmngr, DB: db, AwsS3: awsS3, KafkaConfig: kafkaconfigs}
 	return &config, nil
 
 }

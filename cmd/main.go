@@ -45,15 +45,6 @@ func main() {
 				continue
 			}
 			log.Println("New connection from:", conn.RemoteAddr())
-			
-			// Optionally read from the connection and log data (for demonstration purposes)
-			buf := make([]byte, 1024)
-			n, err := conn.Read(buf)
-			if err != nil {
-				log.Println("Error reading from connection:", err)
-				return
-			}
-			log.Printf("Received data: %s", string(buf[:n]))
 		}
 	}()
 

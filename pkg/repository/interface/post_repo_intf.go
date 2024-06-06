@@ -13,9 +13,10 @@ type IPostRepo interface {
 	DeletePostById(postId, userId *string) error
 	DeletePostMedias(postId *string) error
 	EditPost(inputData *requestmodels_posnrel.EditPost) error
-	LikePost(postId, userId *string) error
+	LikePost(postId, userId *string) (bool, error)
 	UnLikePost(postId, userId *string) error
 	RemovePostLikesByPostId(postId *string) error
+	GetPostCreatorId(postId *string) (*string, error)
 
 	GetPostCountOfUser(userId *string) (*uint, *error)
 	GetPostLikeAndCommentsCount(postId *string) (*responsemodels_postnrel.LikeCommentCounts, error)

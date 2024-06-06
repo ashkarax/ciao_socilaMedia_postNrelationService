@@ -12,21 +12,28 @@ import (
 	interface_repo_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/repository/interface"
 	interface_usecase_postnrel "github.com/ashkarax/ciao_socilaMedia_postNrelationService/pkg/usecase/interface"
 	interface_dateToAge "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/DateToAge/interface"
+	interface_kafkaproducer "github.com/ashkarax/ciao_socilaMedia_postNrelationService/utils/kafka_producer/interface"
 )
 
 type CommentUseCase struct {
 	CommentRepo   interface_repo_postnrel.ICommentRepo
 	DateToAgeUtil interface_dateToAge.IDateToAge
 	AuthClient    pb.AuthServiceClient
+	KafkaProducer interface_kafkaproducer.IKafkaProducer
+	PostRepo      interface_repo_postnrel.IPostRepo
 }
 
 func NewCommentUseCase(commentRepo interface_repo_postnrel.ICommentRepo,
 	dateToAgeUtil interface_dateToAge.IDateToAge,
-	authClient *pb.AuthServiceClient) interface_usecase_postnrel.ICommentUseCase {
+	authClient *pb.AuthServiceClient,
+	kafkaProducer interface_kafkaproducer.IKafkaProducer,
+	postRepo interface_repo_postnrel.IPostRepo) interface_usecase_postnrel.ICommentUseCase {
 	return &CommentUseCase{
 		CommentRepo:   commentRepo,
 		DateToAgeUtil: dateToAgeUtil,
 		AuthClient:    *authClient,
+		KafkaProducer: kafkaProducer,
+		PostRepo:      postRepo,
 	}
 }
 
@@ -47,6 +54,41 @@ func (r *CommentUseCase) AddNewComment(input *requestmodels_posnrel.CommentReque
 	err := r.CommentRepo.AddComment(input)
 	if err != nil {
 		return err
+	}
+	var message requestmodels_posnrel.KafkaNotificationTopicModel
+
+	if input.ParentCommentId == 0 {
+		strPostId := fmt.Sprint(input.PostId)
+		PostCreatorId, err := r.PostRepo.GetPostCreatorId(&strPostId)
+		if err != nil {
+			return err
+		}
+		message.UserID = *PostCreatorId
+		message.ActorID = input.UserId
+		message.ActionType = "comment"
+		message.TargetID = fmt.Sprint(input.PostId)
+		message.TargetType = "post"
+		message.CommentText = input.CommentText
+		message.CreatedAt = time.Now()
+	} else {
+		ParentCommentCreatorId, err := r.CommentRepo.FindCommentCreatorId(&input.ParentCommentId)
+		if err != nil {
+			return err
+		}
+		message.UserID = *ParentCommentCreatorId
+		message.ActorID = input.UserId
+		message.ActionType = "reply"
+		message.TargetID = fmt.Sprint(input.ParentCommentId)
+		message.TargetType = "comment"
+		message.CommentText = input.CommentText
+		message.CreatedAt = time.Now()
+	}
+
+	if message.UserID != message.ActorID { //case when the user comments on his own post,replies on his earlier comment
+		err = r.KafkaProducer.KafkaNotificationProducer(&message)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
